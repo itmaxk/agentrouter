@@ -4,128 +4,327 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>AgentRouter Monitor</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%236d5efc'/><path d='M7 20l5-6 4 4 9-10' stroke='white' stroke-width='3' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>">
+<script>
+  try { const t = localStorage.getItem("ar-theme"); if (t) document.documentElement.dataset.theme = t; } catch (e) {}
+</script>
 <style>
 :root {
-  --bg: #f7f7f5; --panel: #ffffff; --text: #1d1d1b; --muted: #6b6b66; --line: #e4e4df;
-  --up: #2f8f5b; --down: #c8463d; --unknown: #b9b9b2; --accent: #3a64c8;
-  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --bg: #f4f5f8; --bg-glow: rgba(109, 94, 252, .10);
+  --surface: #ffffff; --surface-2: #f7f8fb; --border: #e6e8ef; --border-strong: #d5d8e2;
+  --text: #121521; --text-2: #4b5165; --muted: #8a90a3;
+  --accent: #6d5efc; --accent-soft: rgba(109, 94, 252, .12);
+  --up: #16a36a; --up-soft: rgba(22, 163, 106, .12);
+  --down: #e5484d; --down-soft: rgba(229, 72, 77, .12);
+  --warn: #d98e04; --warn-soft: rgba(217, 142, 4, .14);
+  --none: #c9cdd8;
+  --shadow: 0 1px 2px rgba(18, 21, 33, .04), 0 4px 16px rgba(18, 21, 33, .05);
+  --radius: 14px;
+  --sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  color-scheme: light;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #161615; --panel: #1f1f1d; --text: #ecece8; --muted: #9a9a93; --line: #33332f;
-    --up: #4fbf83; --down: #e2675d; --unknown: #55554f; --accent: #7d9cf0;
+    --bg: #0b0d14; --bg-glow: rgba(109, 94, 252, .16);
+    --surface: #131622; --surface-2: #181c2a; --border: #232838; --border-strong: #2f3549;
+    --text: #eceef5; --text-2: #b4b9c9; --muted: #767d93;
+    --accent: #8b7fff; --accent-soft: rgba(139, 127, 255, .16);
+    --up: #2fd189; --up-soft: rgba(47, 209, 137, .14);
+    --down: #ff6369; --down-soft: rgba(255, 99, 105, .14);
+    --warn: #f5b74a; --warn-soft: rgba(245, 183, 74, .14);
+    --none: #2e3446;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 8px 24px rgba(0, 0, 0, .25);
+    color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
-  --bg: #161615; --panel: #1f1f1d; --text: #ecece8; --muted: #9a9a93; --line: #33332f;
-  --up: #4fbf83; --down: #e2675d; --unknown: #55554f; --accent: #7d9cf0;
+  --bg: #0b0d14; --bg-glow: rgba(109, 94, 252, .16);
+  --surface: #131622; --surface-2: #181c2a; --border: #232838; --border-strong: #2f3549;
+  --text: #eceef5; --text-2: #b4b9c9; --muted: #767d93;
+  --accent: #8b7fff; --accent-soft: rgba(139, 127, 255, .16);
+  --up: #2fd189; --up-soft: rgba(47, 209, 137, .14);
+  --down: #ff6369; --down-soft: rgba(255, 99, 105, .14);
+  --warn: #f5b74a; --warn-soft: rgba(245, 183, 74, .14);
+  --none: #2e3446;
+  --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 8px 24px rgba(0, 0, 0, .25);
+  color-scheme: dark;
 }
+
 * { box-sizing: border-box; }
-body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
-main { max-width: 1100px; margin: 0 auto; padding: 24px 16px 48px; }
-header { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
-h1 { font-size: 20px; margin: 0; }
-h2 { font-size: 15px; margin: 0 0 12px; }
+html, body { margin: 0; }
+body {
+  background: radial-gradient(1200px 500px at 15% -10%, var(--bg-glow), transparent 60%), var(--bg);
+  background-attachment: fixed;
+  color: var(--text); font: 14px/1.5 var(--sans); -webkit-font-smoothing: antialiased;
+  font-feature-settings: "tnum" 1, "cv11" 1;
+}
+button { font: inherit; color: inherit; }
+.mono { font-family: var(--mono); font-size: .92em; }
 .muted { color: var(--muted); }
-.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px; margin-top: 16px; overflow-x: auto; }
-.targets { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-top: 16px; }
-.target { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; }
-.target .name { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
-.target .model { font: 600 16px var(--mono); margin-top: 4px; word-break: break-all; }
-table { border-collapse: collapse; width: 100%; }
-th, td { text-align: left; padding: 6px 10px 6px 0; border-bottom: 1px solid var(--line); white-space: nowrap; }
-th { color: var(--muted); font-weight: 500; font-size: 12px; }
-td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
-td.err { white-space: normal; color: var(--muted); font-size: 12px; max-width: 320px; }
-.mono { font-family: var(--mono); }
-.pill { display: inline-block; padding: 1px 8px; border-radius: 99px; font-size: 12px; font-weight: 600; color: #fff; }
-.pill.up { background: var(--up); } .pill.down { background: var(--down); } .pill.unknown { background: var(--unknown); }
-.controls { display: flex; gap: 6px; }
-.controls button { background: transparent; color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 3px 10px; cursor: pointer; font: inherit; }
-.controls button.on { border-color: var(--accent); color: var(--accent); }
-.row-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
-.row-head h2 { margin: 0; }
-svg text { fill: var(--muted); font-size: 11px; }
-.heat { display: grid; grid-template-columns: 34px repeat(24, minmax(12px, 1fr)); gap: 2px; min-width: 420px; }
-.heat div { height: 16px; border-radius: 2px; font-size: 10px; color: var(--muted); }
-.heat .lbl { height: auto; text-align: right; padding-right: 4px; }
-select { background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 3px 6px; font: inherit; }
-.toggle { background: transparent; color: var(--text); border: 1px solid var(--line); border-radius: 99px; padding: 4px 12px; cursor: pointer; font: inherit; display: inline-flex; align-items: center; gap: 8px; }
-.toggle .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--up); }
-.toggle.paused .dot { background: var(--down); }
-.toggle:disabled { opacity: .6; cursor: wait; }
-.head-right { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-.legend { display: flex; gap: 14px; margin-top: 8px; font-size: 12px; color: var(--muted); }
-.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: -1px; }
+.wrap { max-width: 1240px; margin: 0 auto; padding: 0 20px; }
+
+/* top bar */
+.topbar {
+  position: sticky; top: 0; z-index: 10; backdrop-filter: saturate(160%) blur(14px); -webkit-backdrop-filter: saturate(160%) blur(14px);
+  background: color-mix(in srgb, var(--bg) 78%, transparent); border-bottom: 1px solid var(--border);
+}
+.topbar .wrap { display: flex; align-items: center; gap: 16px; height: 64px; }
+.brand { display: flex; align-items: center; gap: 10px; font-weight: 650; font-size: 15px; letter-spacing: -.01em; }
+.logo { width: 30px; height: 30px; border-radius: 9px; background: linear-gradient(135deg, var(--accent), #a855f7); display: grid; place-items: center; box-shadow: 0 4px 14px var(--accent-soft); }
+.logo svg { width: 18px; height: 18px; }
+.brand small { display: block; font-weight: 450; font-size: 12px; color: var(--muted); }
+.spacer { flex: 1; }
+.live { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 12.5px; white-space: nowrap; }
+.pulse { width: 8px; height: 8px; border-radius: 50%; background: var(--up); box-shadow: 0 0 0 0 var(--up-soft); animation: pulse 2s infinite; }
+.paused .pulse { background: var(--down); animation: none; }
+@keyframes pulse { 0% { box-shadow: 0 0 0 0 var(--up-soft); } 70% { box-shadow: 0 0 0 8px transparent; } 100% { box-shadow: 0 0 0 0 transparent; } }
+
+.switch { display: flex; align-items: center; gap: 10px; padding: 6px 12px 6px 6px; border: 1px solid var(--border); background: var(--surface); border-radius: 99px; cursor: pointer; box-shadow: var(--shadow); white-space: nowrap; }
+.switch:hover { border-color: var(--border-strong); }
+.switch:disabled { opacity: .6; cursor: progress; }
+.switch .track { width: 36px; height: 20px; border-radius: 99px; background: var(--up); position: relative; transition: background .2s; }
+.switch .track::after { content: ""; position: absolute; top: 2px; left: 18px; width: 16px; height: 16px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.3); transition: left .2s; }
+.switch[aria-checked="false"] .track { background: var(--none); }
+.switch[aria-checked="false"] .track::after { left: 2px; }
+.switch .label { font-size: 13px; font-weight: 550; }
+
+.icon-btn { width: 36px; height: 36px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface); display: grid; place-items: center; cursor: pointer; box-shadow: var(--shadow); }
+.icon-btn:hover { border-color: var(--border-strong); }
+.icon-btn svg { width: 18px; height: 18px; stroke: var(--text-2); }
+
+main { padding-top: 24px; padding-bottom: 56px; }
+.banner { display: none; align-items: center; gap: 12px; padding: 12px 16px; border-radius: 12px; margin-bottom: 18px; background: var(--warn-soft); color: var(--text); border: 1px solid color-mix(in srgb, var(--warn) 35%, transparent); font-size: 13.5px; }
+.banner.show { display: flex; }
+.banner b { font-weight: 600; }
+.banner button { margin-left: auto; border: 0; background: var(--warn); color: #1b1300; font-weight: 600; padding: 6px 12px; border-radius: 8px; cursor: pointer; }
+
+/* KPI */
+.kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); }
+.kpi { padding: 16px 18px; min-width: 0; }
+.kpi .k { font-size: 12px; color: var(--muted); font-weight: 550; text-transform: uppercase; letter-spacing: .06em; display: flex; align-items: center; gap: 8px; }
+.kpi .v { font-size: 22px; font-weight: 650; letter-spacing: -.02em; margin-top: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.kpi .v.mono { font-size: 17px; font-weight: 600; }
+.kpi .s { font-size: 12.5px; color: var(--text-2); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tag { white-space: nowrap; flex-shrink: 0; display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 600; padding: 2px 8px; border-radius: 99px; letter-spacing: 0; text-transform: none; }
+.tag.up { background: var(--up-soft); color: var(--up); }
+.tag.down { background: var(--down-soft); color: var(--down); }
+.tag.none { background: var(--surface-2); color: var(--muted); }
+.tag.pause { background: var(--warn-soft); color: var(--warn); }
+.tag.accent { background: var(--accent-soft); color: var(--accent); }
+.tag .d { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+/* sections */
+section { margin-top: 28px; }
+.sec-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+.sec-head h2 { font-size: 15px; font-weight: 650; margin: 0; letter-spacing: -.01em; }
+.sec-head p { margin: 2px 0 0; font-size: 12.5px; color: var(--muted); }
+.seg { display: inline-flex; padding: 3px; gap: 2px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; }
+.seg button { border: 0; background: transparent; padding: 5px 12px; border-radius: 7px; cursor: pointer; font-size: 12.5px; font-weight: 550; color: var(--text-2); }
+.seg button.on { background: var(--surface); color: var(--text); box-shadow: 0 1px 3px rgba(0,0,0,.12); }
+
+/* model cards */
+.models { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; }
+.model { padding: 16px 18px 14px; position: relative; overflow: hidden; }
+.model::before { content: ""; position: absolute; inset: 0 auto 0 0; width: 3px; background: var(--none); }
+.model.up::before { background: var(--up); }
+.model.down::before { background: var(--down); }
+.model .top { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.model .top > div { min-width: 0; }
+.model .name { font: 600 14.5px var(--mono); letter-spacing: -.01em; overflow-wrap: anywhere; }
+.model .sub { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+.chip { font-size: 11px; font-weight: 550; padding: 1px 7px; border-radius: 6px; background: var(--surface-2); border: 1px solid var(--border); color: var(--text-2); }
+.chip.accent { background: var(--accent-soft); border-color: transparent; color: var(--accent); }
+.metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 14px; }
+.metric .mk { font-size: 11px; color: var(--muted); }
+.metric .mv { font-size: 15px; font-weight: 620; margin-top: 1px; }
+.meter { height: 4px; border-radius: 99px; background: var(--surface-2); margin-top: 5px; overflow: hidden; }
+.meter i { display: block; height: 100%; border-radius: 99px; background: var(--up); }
+.strip { display: flex; height: 22px; margin-top: 14px; border-radius: 6px; overflow: hidden; background: var(--surface-2); }
+.strip span { height: 100%; }
+.strip-axis { display: flex; justify-content: space-between; font-size: 10.5px; color: var(--muted); margin-top: 4px; }
+.model .err { margin-top: 10px; font-size: 12px; color: var(--text-2); background: var(--down-soft); border-radius: 8px; padding: 6px 9px; }
+.model .err span { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.model .foot { margin-top: 10px; font-size: 11.5px; color: var(--muted); display: flex; justify-content: space-between; gap: 8px; }
+
+/* timeline */
+.panel { padding: 18px 20px; }
+.scroll { overflow-x: auto; }
+#timeline svg text { fill: var(--muted); font: 11px var(--sans); }
+#timeline svg .lane-label { fill: var(--text-2); font: 500 12px var(--mono); }
+.legend { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 10px; font-size: 12px; color: var(--muted); }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+
+/* two columns */
+.grid-2 { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 14px; }
+.grid-2 > section { margin-top: 0; }
+
+/* table */
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th { text-align: left; font-size: 11.5px; font-weight: 550; color: var(--muted); padding: 0 12px 10px 0; white-space: nowrap; }
+td { padding: 10px 12px 10px 0; border-top: 1px solid var(--border); white-space: nowrap; }
+.num { text-align: right; font-variant-numeric: tabular-nums; }
+.bar-cell { display: flex; align-items: center; gap: 10px; justify-content: flex-end; }
+.bar-cell .meter { width: 70px; margin: 0; height: 6px; }
+
+/* heatmap */
+.heat-wrap { display: grid; grid-template-columns: 26px 1fr; gap: 6px; min-width: 460px; }
+.heat-days { display: grid; grid-template-rows: repeat(7, 1fr); gap: 3px; font-size: 11px; color: var(--muted); }
+.heat-days span { display: flex; align-items: center; }
+.heat { display: grid; grid-template-columns: repeat(24, 1fr); grid-template-rows: repeat(7, 18px); gap: 3px; }
+.heat div { border-radius: 4px; }
+.heat-hours { grid-column: 2; display: grid; grid-template-columns: repeat(24, 1fr); gap: 3px; font-size: 10.5px; color: var(--muted); }
+.scale { display: flex; align-items: center; gap: 8px; font-size: 11.5px; color: var(--muted); margin-top: 12px; }
+.scale .g { flex: 0 0 140px; height: 8px; border-radius: 99px; background: linear-gradient(90deg, var(--down), color-mix(in srgb, var(--down) 25%, var(--surface-2)), color-mix(in srgb, var(--up) 25%, var(--surface-2)), var(--up)); }
+select { background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: 9px; padding: 6px 10px; font: 500 12.5px var(--mono); }
+
+/* feed */
+.feed { list-style: none; margin: 0; padding: 0; }
+.feed li { display: grid; grid-template-columns: 32px 1fr auto; gap: 12px; align-items: start; padding: 10px 0; border-top: 1px solid var(--border); }
+.feed li:first-child { border-top: 0; padding-top: 0; }
+.feed .ic { width: 32px; height: 32px; border-radius: 9px; display: grid; place-items: center; background: var(--accent-soft); color: var(--accent); }
+.feed .ic.down { background: var(--down-soft); color: var(--down); }
+.feed .ic.predicted { background: var(--warn-soft); color: var(--warn); }
+.feed .ic svg { width: 16px; height: 16px; }
+.feed .what { font-size: 13px; }
+.feed .what .mono { font-weight: 550; }
+.feed .why { font-size: 12px; color: var(--muted); margin-top: 1px; }
+.feed time { font-size: 12px; color: var(--muted); white-space: nowrap; }
+.empty { color: var(--muted); font-size: 13px; padding: 18px 0; text-align: center; }
+
+.toast { position: fixed; bottom: 20px; left: 50%; transform: translate(-50%, 20px); opacity: 0; transition: .25s; background: var(--text); color: var(--bg); padding: 10px 16px; border-radius: 10px; font-size: 13px; box-shadow: var(--shadow); pointer-events: none; z-index: 20; max-width: calc(100% - 32px); }
+.toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+.skeleton { background: linear-gradient(90deg, var(--surface-2), var(--border), var(--surface-2)); background-size: 200% 100%; animation: sk 1.2s infinite; border-radius: 8px; height: 150px; }
+@keyframes sk { to { background-position: -200% 0; } }
+
+@media (max-width: 980px) {
+  .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .grid-2 { grid-template-columns: minmax(0, 1fr); }
+  .grid-2 > section + section { margin-top: 14px; }
+}
+@media (max-width: 640px) {
+  .wrap { padding: 0 16px; }
+  .topbar .wrap { height: auto; padding-top: 10px; padding-bottom: 10px; flex-wrap: wrap; }
+  .live { order: 5; width: 100%; }
+  .brand small { display: none; }
+  .switch .label { display: none; }
+  .kpis { grid-template-columns: minmax(0, 1fr); gap: 10px; }
+  .models { grid-template-columns: minmax(0, 1fr); }
+  select { max-width: 100%; }
+  .banner { flex-wrap: wrap; }
+  .banner button { margin-left: 0; }
+  .kpi .v { font-size: 18px; }
+  .panel { padding: 14px; }
+}
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
 </style>
 </head>
 <body>
-<main>
-  <header>
-    <h1>AgentRouter Monitor</h1>
-    <div class="head-right">
-      <span class="muted" id="updated">загрузка…</span>
-      <button class="toggle" id="checks" type="button" title="Включить или выключить проверки моделей и авто-переключение"><span class="dot"></span><span id="checks-label">Проверки</span></button>
+<header class="topbar">
+  <div class="wrap">
+    <div class="brand">
+      <div class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 16l5-6 4 4 9-10"/></svg></div>
+      <div>AgentRouter Monitor<small>доступность моделей и авто-переключение</small></div>
     </div>
-  </header>
+    <div class="spacer"></div>
+    <div class="live" id="live"><span class="pulse"></span><span id="updated">загрузка…</span></div>
+    <button class="switch" id="checks" type="button" role="switch" aria-checked="true" title="Включить или выключить проверки моделей и авто-переключение">
+      <span class="track"></span><span class="label" id="checks-label">Проверки</span>
+    </button>
+    <button class="icon-btn" id="theme" type="button" title="Тема" aria-label="Сменить тему"></button>
+  </div>
+</header>
 
-  <div class="targets" id="targets"></div>
+<main class="wrap">
+  <div class="banner" id="paused-banner">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>
+    <span><b>Проверки на паузе</b> <span id="paused-since"></span> — модели не проверяются, конфиги не меняются.</span>
+    <button type="button" id="resume">Включить</button>
+  </div>
 
-  <section class="panel">
-    <h2>Модели</h2>
-    <table>
-      <thead><tr><th>Модель</th><th>API</th><th>Статус</th><th class="num">Сколько</th><th class="num">24ч</th><th class="num">Прогноз 30м</th><th>Последняя проверка</th><th></th></tr></thead>
-      <tbody id="models"></tbody>
-    </table>
+  <div class="kpis" id="kpis">
+    <div class="card kpi"><div class="skeleton" style="height:58px"></div></div>
+    <div class="card kpi"><div class="skeleton" style="height:58px"></div></div>
+    <div class="card kpi"><div class="skeleton" style="height:58px"></div></div>
+    <div class="card kpi"><div class="skeleton" style="height:58px"></div></div>
+  </div>
+
+  <section>
+    <div class="sec-head">
+      <div><h2>Модели</h2><p>Полоса — последние 24 часа, прогноз — худшая ожидаемая доступность в ближайшие 30 минут</p></div>
+    </div>
+    <div class="models" id="models"><div class="card skeleton"></div><div class="card skeleton"></div><div class="card skeleton"></div></div>
   </section>
 
-  <section class="panel">
-    <div class="row-head">
-      <h2>Таймлайн доступности</h2>
-      <div class="controls" id="periods">
+  <section>
+    <div class="sec-head">
+      <div><h2>Таймлайн доступности</h2><p>Наведите на отрезок, чтобы увидеть время и длительность</p></div>
+      <div class="seg" id="periods">
         <button data-p="6h">6ч</button><button data-p="1d" class="on">24ч</button><button data-p="7d">7д</button><button data-p="30d">30д</button>
       </div>
     </div>
-    <div id="timeline"></div>
-    <div class="legend"><span><i style="background:var(--up)"></i>доступна</span><span><i style="background:var(--down)"></i>недоступна</span><span><i style="background:var(--unknown)"></i>нет данных</span></div>
-  </section>
-
-  <section class="panel">
-    <h2>Статистика за период</h2>
-    <table>
-      <thead><tr><th>Модель</th><th class="num">Доступность</th><th class="num">Доступна</th><th class="num">Недоступна</th><th class="num">Падений</th><th class="num">Ср. аптайм</th><th class="num">Ср. простой</th><th class="num">Макс. простой</th></tr></thead>
-      <tbody id="stats"></tbody>
-    </table>
-  </section>
-
-  <section class="panel">
-    <div class="row-head">
-      <h2>Когда модель доступна (по часам недели)</h2>
-      <select id="heat-model"></select>
+    <div class="card panel">
+      <div class="scroll" id="timeline"></div>
+      <div class="legend"><span><i style="background:var(--up)"></i>доступна</span><span><i style="background:var(--down)"></i>недоступна</span><span><i style="background:var(--none)"></i>нет данных / пауза</span></div>
     </div>
-    <div class="heat" id="heat"></div>
-    <div class="legend"><span>вероятность доступности: светлее — ниже, насыщеннее — выше</span></div>
   </section>
 
-  <section class="panel">
-    <h2>Переключения</h2>
-    <table>
-      <thead><tr><th>Время</th><th>Куда</th><th>Было</th><th>Стало</th><th>Причина</th></tr></thead>
-      <tbody id="switches"></tbody>
-    </table>
+  <section>
+    <div class="sec-head"><div><h2>Статистика</h2><p id="stats-sub">за 24 часа</p></div></div>
+    <div class="card panel scroll">
+      <table>
+        <thead><tr><th>Модель</th><th class="num">Доступность</th><th class="num">Доступна</th><th class="num">Недоступна</th><th class="num">Падений</th><th class="num">Ср. аптайм</th><th class="num">Ср. простой</th><th class="num">Макс. простой</th></tr></thead>
+        <tbody id="stats"></tbody>
+      </table>
+    </div>
   </section>
+
+  <div class="grid-2" style="margin-top:28px">
+    <section>
+      <div class="sec-head">
+        <div><h2>Паттерн по часам недели</h2><p>Выученная вероятность доступности</p></div>
+        <select id="heat-model" aria-label="Модель"></select>
+      </div>
+      <div class="card panel scroll">
+        <div class="heat-wrap">
+          <div class="heat-days" id="heat-days"></div>
+          <div class="heat" id="heat"></div>
+          <div class="heat-hours" id="heat-hours"></div>
+        </div>
+        <div class="scale"><span>недоступна</span><span class="g"></span><span>доступна</span><span class="spacer"></span><span id="heat-samples"></span></div>
+      </div>
+    </section>
+    <section>
+      <div class="sec-head"><div><h2>Переключения</h2><p>Куда и почему переключались opencode и Hermes</p></div></div>
+      <div class="card panel"><ul class="feed" id="switches"></ul></div>
+    </section>
+  </div>
 </main>
+<div class="toast" id="toast"></div>
+
 <script>
-const REASONS = {down: "модель упала", predicted: "заранее (прогноз)", better: "лучше доступна", pinned: "закреплена", manual: "вручную", initial: "старт"};
+const REASONS = {down: "модель упала", predicted: "заранее, по прогнозу", better: "доступнее текущей", pinned: "закреплена вручную", manual: "вручную", initial: "первая настройка"};
 const DAYS = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
-let period = "1d";
-let predictData = {};
-let checksPaused = null;
+const PERIODS = {"6h": [6 * 3600, "за 6 часов"], "1d": [86400, "за 24 часа"], "7d": [7 * 86400, "за 7 дней"], "30d": [30 * 86400, "за 30 дней"]};
+const ICONS = {
+  swap: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4L3 8l4 4"/><path d="M3 8h13a5 5 0 0 1 0 10h-3"/></svg>',
+  down: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>',
+  predicted: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
+  sun: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>',
+  moon: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>',
+  auto: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 3v18" /><path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor" stroke="none" style="fill:var(--text-2)"/></svg>',
+};
+
+let period = "1d", predictData = {}, checksPaused = null, lastStatus = null, lastFetch = 0, day = [];
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]));
-const pct = (x) => x == null ? "–" : (x * 100).toFixed(1) + "%";
+const pct = (x, d = 1) => x == null ? "–" : (x * 100).toFixed(d) + "%";
 const ts = (t) => t ? new Date(t * 1000).toLocaleString("ru-RU", {month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit"}) : "–";
+const hm = (t) => new Date(t * 1000).toLocaleTimeString("ru-RU", {hour: "2-digit", minute: "2-digit"});
+const css = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 function dur(s) {
   if (s == null) return "–";
   s = Math.floor(s);
@@ -135,76 +334,205 @@ function dur(s) {
   if (m) return `${m}м`;
   return `${s}с`;
 }
-const pill = (up) => up === true ? '<span class="pill up">UP</span>' : up === false ? '<span class="pill down">DOWN</span>' : '<span class="pill unknown">?</span>';
-const api = (path) => fetch(path).then((r) => r.json()).then((j) => j.data);
-const cssVar = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
-
-async function loadStatus() {
-  const s = await api("/api/status");
-  renderChecks(s.checks_paused);
-  $("updated").textContent = "обновлено " + new Date().toLocaleTimeString("ru-RU") + (s.pinned ? ` · закреплена ${s.pinned}` : "");
-  $("targets").innerHTML = Object.entries(s.targets).map(([n, t]) =>
-    `<div class="target"><div class="name">${esc(n)}</div><div class="model">${esc(t.model || "не на AgentRouter")}</div></div>`).join("") +
-    (s.last_error ? `<div class="target"><div class="name">последняя ошибка · ${ts(s.last_error.ts)}</div><div class="muted">${esc(s.last_error.error).slice(0, 160)}</div></div>` : "");
-  $("models").innerHTML = s.models.map((m) => {
-    const lp = m.last_probe;
-    return `<tr><td class="mono">${esc(m.id)}</td><td>${esc(m.endpoint)}</td><td>${pill(m.up)}</td>
-      <td class="num">${dur(m.for_seconds)}</td><td class="num">${pct(m.availability_24h)}</td><td class="num">${pct(m.next_30m)}</td>
-      <td>${lp ? `${ts(lp.ts)} · ${esc(lp.status)} · ${lp.latency_ms} мс` : "–"}</td>
-      <td class="err">${lp && lp.error ? esc(lp.error).slice(0, 120) : ""}</td></tr>`;
-  }).join("");
-  const sw = await api("/api/switches?limit=30");
-  $("switches").innerHTML = sw.length ? sw.map((x) => `<tr><td>${ts(x.ts)}</td><td>${esc(x.target)}</td><td class="mono">${esc(x.from_model || "–")}</td>
-    <td class="mono">${esc(x.to_model)}</td><td>${esc(REASONS[x.reason] || x.reason)}${x.applied ? "" : " (dry-run)"}</td></tr>`).join("")
-    : '<tr><td colspan="5" class="muted">пока не было</td></tr>';
+function ago(t) {
+  const s = Math.max(0, Date.now() / 1000 - t);
+  if (s < 60) return "только что";
+  if (s < 3600) return `${Math.floor(s / 60)} мин назад`;
+  if (s < 86400) return `${Math.floor(s / 3600)} ч назад`;
+  return ts(t);
+}
+const tag = (up) => checksPaused ? '<span class="tag pause"><span class="d"></span>пауза</span>' : up === true ? '<span class="tag up"><span class="d"></span>доступна</span>'
+  : up === false ? '<span class="tag down"><span class="d"></span>недоступна</span>' : '<span class="tag none"><span class="d"></span>нет данных</span>';
+const meterColor = (p) => p == null ? "var(--none)" : p >= .9 ? "var(--up)" : p >= .5 ? "var(--warn)" : "var(--down)";
+async function api(path, opts) {
+  const r = await fetch(path, opts);
+  if (!r.ok) throw new Error((await r.text()) || r.status);
+  return (await r.json()).data;
+}
+function toast(msg) {
+  const t = $("toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  clearTimeout(toast.h);
+  toast.h = setTimeout(() => t.classList.remove("show"), 3500);
 }
 
+/* theme */
+const THEMES = ["auto", "light", "dark"];
+function applyTheme(t) {
+  if (t === "auto") delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme = t;
+  try { t === "auto" ? localStorage.removeItem("ar-theme") : localStorage.setItem("ar-theme", t); } catch (e) {}
+  $("theme").innerHTML = ICONS[t === "light" ? "sun" : t === "dark" ? "moon" : "auto"];
+  $("theme").title = "Тема: " + {auto: "как в системе", light: "светлая", dark: "тёмная"}[t];
+  redrawAll();
+}
+$("theme").addEventListener("click", () => {
+  const cur = document.documentElement.dataset.theme || "auto";
+  applyTheme(THEMES[(THEMES.indexOf(cur) + 1) % 3]);
+});
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => redrawAll());
+
+/* checks toggle */
+function renderChecks(paused) {
+  checksPaused = paused || null;
+  const b = $("checks");
+  b.setAttribute("aria-checked", checksPaused ? "false" : "true");
+  $("checks-label").textContent = checksPaused ? "Проверки выкл." : "Проверки вкл.";
+  $("live").classList.toggle("paused", !!checksPaused);
+  $("paused-banner").classList.toggle("show", !!checksPaused);
+  $("paused-since").textContent = checksPaused ? `с ${ts(checksPaused)}` : "";
+}
+async function setChecks(enabled) {
+  const b = $("checks");
+  b.disabled = true;
+  try {
+    const d = await api("/api/checks", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({enabled})});
+    renderChecks(d.checks_paused);
+    toast(enabled ? "Проверки включены" : "Проверки на паузе");
+    loadStatus();
+  } catch (e) {
+    toast("Не удалось переключить проверки: " + e.message);
+  } finally {
+    b.disabled = false;
+  }
+}
+$("checks").addEventListener("click", () => setChecks(!!checksPaused));
+$("resume").addEventListener("click", () => setChecks(true));
+
+/* status: KPIs, model cards, switches */
+function renderKpis(s) {
+  const t = s.targets, upN = s.models.filter((m) => m.up).length;
+  const av = s.models.map((m) => m.availability_24h).filter((x) => x != null);
+  const sw = s.switches[0];
+  const target = (name, label) => {
+    const x = t[name];
+    if (!x) return "";
+    const m = s.models.find((mm) => mm.id === x.model);
+    return `<div class="card kpi"><div class="k">${label} ${x.model ? tag(m ? m.up : null) : ""}</div>
+      <div class="v mono" title="${esc(x.model || "")}">${esc(x.model || "не на AgentRouter")}</div>
+      <div class="s">${s.pinned ? `закреплена: <span class="mono">${esc(s.pinned)}</span>` : (name === "hermes" ? "первый в fallback_providers" : "модель по умолчанию")}</div></div>`;
+  };
+  $("kpis").innerHTML = target("opencode", "opencode") + target("hermes", "Hermes") +
+    `<div class="card kpi"><div class="k">Доступно сейчас</div><div class="v">${checksPaused ? '<span class="muted">пауза</span>' : `${upN} <span class="muted" style="font-weight:500">из ${s.models.length}</span>`}</div>
+      <div class="s">средняя доступность за 24ч ${av.length ? pct(av.reduce((a, b) => a + b, 0) / av.length) : "–"}</div></div>` +
+    `<div class="card kpi"><div class="k">Последнее переключение</div>${sw
+      ? `<div class="v">${ago(sw.ts)}</div><div class="s">${esc(sw.target)} → <span class="mono">${esc(sw.to_model)}</span> · ${esc(REASONS[sw.reason] || sw.reason)}</div>`
+      : `<div class="v muted">—</div><div class="s">пока не было</div>`}</div>`;
+}
+
+function strip(model) {
+  const now = Date.now() / 1000, t0 = now - 86400;
+  const ivs = day.filter((h) => h.model === model);
+  const segs = [];
+  let cursor = t0;
+  for (const h of ivs) {
+    const a = Math.max(h.start_ts, t0), b = Math.min(h.open ? Math.max(h.end_ts, now) : h.end_ts, now);
+    if (b <= a) continue;
+    if (a > cursor) segs.push([cursor, a, null]);
+    segs.push([a, b, !!h.up, h]);
+    cursor = Math.max(cursor, b);
+  }
+  if (cursor < now) segs.push([cursor, now, null]);
+  return `<div class="strip">${segs.map(([a, b, up, h]) => `<span style="width:${((b - a) / 86400 * 100).toFixed(3)}%;background:${up === null ? "transparent" : up ? "var(--up)" : "var(--down)"}"
+    title="${up === null ? "нет данных" : up ? "доступна" : "недоступна"} ${hm(a)}–${hm(b)} (${dur(b - a)})"></span>`).join("")}</div>
+    <div class="strip-axis"><span>${hm(t0)}</span><span>12ч назад</span><span>сейчас</span></div>`;
+}
+
+function renderModels(s) {
+  const used = new Map();
+  for (const [n, t] of Object.entries(s.targets)) if (t.model) used.set(t.model, [...(used.get(t.model) || []), n]);
+  $("models").innerHTML = s.models.map((m) => {
+    const lp = m.last_probe, u = used.get(m.id) || [];
+    return `<article class="card model ${m.up === true ? "up" : m.up === false ? "down" : ""}">
+      <div class="top"><div><div class="name">${esc(m.id)}</div>
+        <div class="sub"><span class="chip">${m.endpoint === "responses" ? "Responses API" : "Chat API"}</span>${u.map((n) => `<span class="chip accent">${esc(n)}</span>`).join("")}${s.pinned === m.id ? '<span class="chip accent">закреплена</span>' : ""}</div></div>
+        ${tag(m.up)}</div>
+      <div class="metrics">
+        <div class="metric"><div class="mk">${checksPaused ? "статус" : m.up ? "доступна" : m.up === false ? "недоступна" : "статус"}</div><div class="mv">${checksPaused ? "пауза" : dur(m.for_seconds)}</div></div>
+        <div class="metric"><div class="mk">за 24ч</div><div class="mv">${pct(m.availability_24h, 0)}</div><div class="meter"><i style="width:${(m.availability_24h ?? 0) * 100}%;background:${meterColor(m.availability_24h)}"></i></div></div>
+        <div class="metric"><div class="mk">прогноз 30м</div><div class="mv">${pct(m.next_30m, 0)}</div><div class="meter"><i style="width:${(m.next_30m ?? 0) * 100}%;background:${meterColor(m.next_30m)}"></i></div></div>
+      </div>
+      ${strip(m.id)}
+      ${lp && lp.error ? `<div class="err" title="${esc(lp.error)}"><span>${esc(lp.error)}</span></div>` : ""}
+      <div class="foot"><span>${lp ? `проверка ${ago(lp.ts)}` : "ещё не проверялась"}</span><span>${lp && lp.status === "ok" ? `${(lp.latency_ms / 1000).toFixed(1)} с ответ` : lp ? esc(lp.status) : ""}</span></div>
+    </article>`;
+  }).join("") || '<div class="empty">Модели ещё не найдены</div>';
+}
+
+function renderSwitches(sw) {
+  $("switches").innerHTML = sw.length ? sw.map((x) => {
+    const kind = x.reason === "down" ? "down" : x.reason === "predicted" ? "predicted" : "";
+    return `<li><div class="ic ${kind}">${ICONS[kind || "swap"]}</div>
+      <div><div class="what"><b>${esc(x.target)}</b>: <span class="mono">${esc(x.from_model || "—")}</span> → <span class="mono">${esc(x.to_model)}</span></div>
+      <div class="why">${esc(REASONS[x.reason] || x.reason)}${x.applied ? "" : " · dry-run"}</div></div>
+      <time title="${ts(x.ts)}">${ago(x.ts)}</time></li>`;
+  }).join("") : '<li class="empty">Переключений пока не было</li>';
+}
+
+async function loadStatus() {
+  try {
+    const [s, sw, d] = await Promise.all([api("/api/status"), api("/api/switches?limit=20"), api("/api/history?period=1d")]);
+    lastStatus = s; day = d; lastFetch = Date.now();
+    renderChecks(s.checks_paused);
+    renderKpis(s);
+    renderModels(s);
+    renderSwitches(sw);
+    tickUpdated();
+  } catch (e) {
+    $("updated").textContent = "нет связи с демоном";
+  }
+}
+function tickUpdated() {
+  if (!lastFetch) return;
+  const s = Math.round((Date.now() - lastFetch) / 1000);
+  $("updated").textContent = checksPaused ? "проверки на паузе" : `обновлено ${s < 5 ? "только что" : s + " с назад"}`;
+}
+
+/* timeline + stats */
+let periodData = null;
 async function loadPeriod() {
-  const [hist, st] = await Promise.all([api(`/api/history?period=${period}`), api(`/api/stats?period=${period}`)]);
-  const now = Date.now() / 1000, span = {"6h": 6 * 3600, "1d": 86400, "7d": 7 * 86400, "30d": 30 * 86400}[period], t0 = now - span;
+  try {
+    const [hist, st] = await Promise.all([api(`/api/history?period=${period}`), api(`/api/stats?period=${period}`)]);
+    periodData = {hist, st};
+    drawTimeline();
+    $("stats-sub").textContent = PERIODS[period][1];
+    $("stats").innerHTML = st.sort((a, b) => (b.availability ?? -1) - (a.availability ?? -1)).map((r) =>
+      `<tr><td class="mono">${esc(r.id)}</td>
+       <td class="num"><div class="bar-cell"><span>${pct(r.availability)}</span><div class="meter"><i style="width:${(r.availability ?? 0) * 100}%;background:${meterColor(r.availability)}"></i></div></div></td>
+       <td class="num">${dur(r.up_seconds)}</td><td class="num">${dur(r.down_seconds)}</td><td class="num">${r.outages}</td>
+       <td class="num">${dur(r.avg_up_seconds)}</td><td class="num">${dur(r.avg_down_seconds)}</td><td class="num">${dur(r.longest_down_seconds)}</td></tr>`).join("")
+      || '<tr><td colspan="8" class="empty">Данных пока нет</td></tr>';
+  } catch (e) { /* status line already reports connectivity */ }
+}
+function drawTimeline() {
+  if (!periodData) return;
+  const {hist, st} = periodData;
+  const now = Date.now() / 1000, span = PERIODS[period][0], t0 = now - span;
   const models = [...new Set(st.map((r) => r.id))];
-  const W = Math.max(600, $("timeline").clientWidth), L = 150, R = 8, rowH = 22, H = models.length * rowH + 24;
-  const x = (t) => L + (Math.max(t, t0) - t0) / span * (W - L - R);
+  const narrow = innerWidth < 640, W = Math.max(narrow ? 520 : 640, $("timeline").clientWidth), L = narrow ? 128 : 170, R = 4, rowH = 30, barH = 18, H = models.length * rowH + 26;
+  const x = (t) => L + (Math.min(Math.max(t, t0), now) - t0) / span * (W - L - R);
+  const up = css("--up"), down = css("--down"), none = css("--none"), border = css("--border");
   let svg = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="Таймлайн доступности моделей">`;
+  for (let k = 0; k <= 6; k++) {
+    const gx = x(t0 + span * k / 6);
+    svg += `<line x1="${gx}" x2="${gx}" y1="0" y2="${H - 22}" stroke="${border}" stroke-dasharray="${k === 6 ? "" : "2 4"}"/>`;
+  }
   models.forEach((m, i) => {
-    const y = i * rowH + 4;
-    svg += `<text x="0" y="${y + 13}">${esc(m)}</text><rect x="${L}" y="${y}" width="${W - L - R}" height="16" rx="3" fill="${cssVar("--unknown")}" opacity=".35"/>`;
+    const y = i * rowH + (rowH - barH) / 2;
+    svg += `<text class="lane-label" x="0" y="${y + barH / 2 + 4}">${esc(m.length > (narrow ? 16 : 22) ? m.slice(0, narrow ? 15 : 21) + "…" : m)}</text>`;
+    svg += `<rect x="${L}" y="${y}" width="${W - L - R}" height="${barH}" rx="5" fill="${none}" opacity=".55"/>`;
     hist.filter((h) => h.model === m).forEach((h) => {
       const a = x(h.start_ts), b = x(h.open ? Math.max(h.end_ts, now) : h.end_ts);
-      if (b <= L) return;
-      svg += `<rect x="${a}" y="${y}" width="${Math.max(1, b - a)}" height="16" fill="${h.up ? cssVar("--up") : cssVar("--down")}"><title>${h.up ? "доступна" : "недоступна"} ${ts(h.start_ts)} → ${h.open ? "сейчас" : ts(h.end_ts)} (${dur(h.end_ts - h.start_ts)})</title></rect>`;
+      if (b - a <= 0 && !h.open) return;
+      svg += `<rect x="${a}" y="${y}" width="${Math.max(1.5, b - a)}" height="${barH}" rx="2" fill="${h.up ? up : down}"><title>${h.up ? "доступна" : "недоступна"}: ${ts(h.start_ts)} → ${h.open ? "сейчас" : ts(h.end_ts)} (${dur((h.open ? now : h.end_ts) - h.start_ts)})</title></rect>`;
     });
   });
   for (let k = 0; k <= 6; k++) {
     const t = t0 + span * k / 6;
-    svg += `<text x="${x(t)}" y="${H - 4}" text-anchor="${k === 0 ? "start" : k === 6 ? "end" : "middle"}">${ts(t)}</text>`;
+    svg += `<text x="${x(t)}" y="${H - 6}" text-anchor="${k === 0 ? "start" : k === 6 ? "end" : "middle"}">${span <= 86400 ? hm(t) : ts(t)}</text>`;
   }
-  $("timeline").innerHTML = models.length ? svg + "</svg>" : '<p class="muted">данных пока нет</p>';
-  $("stats").innerHTML = st.sort((a, b) => (b.availability ?? -1) - (a.availability ?? -1)).map((r) =>
-    `<tr><td class="mono">${esc(r.id)}</td><td class="num">${pct(r.availability)}</td><td class="num">${dur(r.up_seconds)}</td><td class="num">${dur(r.down_seconds)}</td>
-     <td class="num">${r.outages}</td><td class="num">${dur(r.avg_up_seconds)}</td><td class="num">${dur(r.avg_down_seconds)}</td><td class="num">${dur(r.longest_down_seconds)}</td></tr>`).join("");
+  $("timeline").innerHTML = models.length ? svg + "</svg>" : '<div class="empty">Данных пока нет</div>';
 }
-
-async function loadPredict() {
-  predictData = await api("/api/predict?hours=24");
-  const sel = $("heat-model"), prev = sel.value;
-  sel.innerHTML = Object.keys(predictData).map((m) => `<option>${esc(m)}</option>`).join("");
-  if (prev && predictData[prev]) sel.value = prev;
-  drawHeat();
-}
-
-function drawHeat() {
-  const p = predictData[$("heat-model").value];
-  if (!p) { $("heat").innerHTML = ""; return; }
-  const up = cssVar("--up"), down = cssVar("--down");
-  let html = '<div class="lbl"></div>' + Array.from({length: 24}, (_, h) => `<div class="lbl" style="text-align:center">${h % 3 ? "" : h}</div>`).join("");
-  p.week.forEach((row, d) => {
-    html += `<div class="lbl">${DAYS[d]}</div>` + row.map((v, h) => v == null ? `<div style="background:${cssVar("--unknown")};opacity:.3"></div>` :
-      `<div title="${DAYS[d]} ${h}:00 — ${pct(v)}" style="background:${v >= 0.5 ? up : down};opacity:${(0.15 + 0.85 * Math.abs(v - 0.5) * 2).toFixed(2)}"></div>`).join("");
-  });
-  $("heat").innerHTML = html + `<div class="lbl"></div><div class="muted" style="grid-column: span 24; height:auto">${Math.round(p.samples)} наблюдений (×5 мин)</div>`;
-}
-
 $("periods").addEventListener("click", (e) => {
   const b = e.target.closest("button");
   if (!b) return;
@@ -212,32 +540,45 @@ $("periods").addEventListener("click", (e) => {
   document.querySelectorAll("#periods button").forEach((x) => x.classList.toggle("on", x === b));
   loadPeriod();
 });
+
+/* heatmap */
+async function loadPredict() {
+  try {
+    predictData = await api("/api/predict?hours=24");
+  } catch (e) { return; }
+  const sel = $("heat-model"), prev = sel.value;
+  sel.innerHTML = Object.keys(predictData).map((m) => `<option>${esc(m)}</option>`).join("");
+  if (prev && predictData[prev]) sel.value = prev;
+  else if (lastStatus && lastStatus.targets.opencode && predictData[lastStatus.targets.opencode.model]) sel.value = lastStatus.targets.opencode.model;
+  drawHeat();
+}
+function heatColor(v) {
+  if (v == null) return `color-mix(in srgb, var(--none) 60%, transparent)`;
+  const strength = Math.round(Math.abs(v - .5) * 2 * 85 + 15);
+  return `color-mix(in srgb, ${v >= .5 ? "var(--up)" : "var(--down)"} ${strength}%, var(--surface-2))`;
+}
+function drawHeat() {
+  const p = predictData[$("heat-model").value];
+  $("heat-days").innerHTML = DAYS.map((d) => `<span>${d}</span>`).join("");
+  $("heat-hours").innerHTML = Array.from({length: 24}, (_, h) => `<span>${h % 3 ? "" : h}</span>`).join("");
+  if (!p) { $("heat").innerHTML = ""; $("heat-samples").textContent = ""; return; }
+  const now = new Date(), curD = (now.getDay() + 6) % 7, curH = now.getHours();
+  $("heat").innerHTML = p.week.map((row, d) => row.map((v, h) =>
+    `<div title="${DAYS[d]} ${h}:00 — ${v == null ? "нет данных" : pct(v)}" style="background:${heatColor(p.samples >= 12 ? v : null)}${d === curD && h === curH ? ";outline:2px solid var(--accent);outline-offset:1px" : ""}"></div>`).join("")).join("");
+  const hours = p.samples * 5 / 60;
+  $("heat-samples").textContent = p.samples >= 12 ? `${Math.round(hours)} ч наблюдений` : "мало данных — меньше часа наблюдений";
+}
 $("heat-model").addEventListener("change", drawHeat);
 
-function renderChecks(paused) {
-  checksPaused = paused || null;
-  const b = $("checks");
-  b.classList.toggle("paused", !!checksPaused);
-  $("checks-label").textContent = checksPaused ? `Проверки выключены с ${ts(checksPaused)} — включить` : "Проверки включены — выключить";
-}
-$("checks").addEventListener("click", async () => {
-  const b = $("checks");
-  b.disabled = true;
-  try {
-    const r = await fetch("/api/checks", {method: "POST", headers: {"Content-Type": "application/json"},
-                                         body: JSON.stringify({enabled: !!checksPaused})});
-    if (!r.ok) throw new Error(await r.text());
-    renderChecks((await r.json()).data.checks_paused);
-    loadStatus();
-  } catch (e) {
-    alert("Не удалось переключить проверки: " + e.message);
-  } finally {
-    b.disabled = false;
-  }
-});
+function redrawAll() { drawTimeline(); drawHeat(); }
+let rt;
+addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(drawTimeline, 120); });
+
+applyTheme(document.documentElement.dataset.theme || "auto");
 function refresh() { loadStatus(); loadPeriod(); loadPredict(); }
 refresh();
 setInterval(refresh, 30000);
+setInterval(tickUpdated, 5000);
 </script>
 </body>
 </html>
