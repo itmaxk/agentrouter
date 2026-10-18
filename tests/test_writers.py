@@ -71,7 +71,7 @@ class OpencodeTest(unittest.TestCase):
 
     def test_current_and_apply(self):
         self.assertEqual(self.w.current(), "claude-opus-5-5")
-        with mock.patch("agentrouter.writers.backup"):
+        with mock.patch("agentrouter.writers.opencode.backup"):
             self.assertTrue(self.w.apply("deepseek-v4-flash"))
             self.assertFalse(self.w.apply("deepseek-v4-flash"))
         self.assertEqual(self.w.current(), "deepseek-v4-flash")
