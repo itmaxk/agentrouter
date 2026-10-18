@@ -1,0 +1,12 @@
+[Unit]
+Description=AgentRouter model availability monitor (keeps opencode/hermes on a working model)
+After=network-online.target agentrouter-proxy.service
+Wants=network-online.target
+
+[Service]
+ExecStart=%h/.local/bin/agentrouter run
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=default.target

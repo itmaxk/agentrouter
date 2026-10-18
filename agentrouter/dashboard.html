@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AgentRouter Monitor</title>
+<style>
+:root {
+  --bg: #f7f7f5; --panel: #ffffff; --text: #1d1d1b; --muted: #6b6b66; --line: #e4e4df;
+  --up: #2f8f5b; --down: #c8463d; --unknown: #b9b9b2; --accent: #3a64c8;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #161615; --panel: #1f1f1d; --text: #ecece8; --muted: #9a9a93; --line: #33332f;
+    --up: #4fbf83; --down: #e2675d; --unknown: #55554f; --accent: #7d9cf0;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #161615; --panel: #1f1f1d; --text: #ecece8; --muted: #9a9a93; --line: #33332f;
+  --up: #4fbf83; --down: #e2675d; --unknown: #55554f; --accent: #7d9cf0;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+main { max-width: 1100px; margin: 0 auto; padding: 24px 16px 48px; }
+header { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+h1 { font-size: 20px; margin: 0; }
+h2 { font-size: 15px; margin: 0 0 12px; }
+.muted { color: var(--muted); }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px; margin-top: 16px; overflow-x: auto; }
+.targets { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-top: 16px; }
+.target { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; }
+.target .name { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+.target .model { font: 600 16px var(--mono); margin-top: 4px; word-break: break-all; }
+table { border-collapse: collapse; width: 100%; }
+th, td { text-align: left; padding: 6px 10px 6px 0; border-bottom: 1px solid var(--line); white-space: nowrap; }
+th { color: var(--muted); font-weight: 500; font-size: 12px; }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+td.err { white-space: normal; color: var(--muted); font-size: 12px; max-width: 320px; }
+.mono { font-family: var(--mono); }
+.pill { display: inline-block; padding: 1px 8px; border-radius: 99px; font-size: 12px; font-weight: 600; color: #fff; }
+.pill.up { background: var(--up); } .pill.down { background: var(--down); } .pill.unknown { background: var(--unknown); }
+.controls { display: flex; gap: 6px; }
+.controls button { background: transparent; color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 3px 10px; cursor: pointer; font: inherit; }
+.controls button.on { border-color: var(--accent); color: var(--accent); }
+.row-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+.row-head h2 { margin: 0; }
+svg text { fill: var(--muted); font-size: 11px; }
+.heat { display: grid; grid-template-columns: 34px repeat(24, minmax(12px, 1fr)); gap: 2px; min-width: 420px; }
+.heat div { height: 16px; border-radius: 2px; font-size: 10px; color: var(--muted); }
+.heat .lbl { height: auto; text-align: right; padding-right: 4px; }
+select { background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 3px 6px; font: inherit; }
+.legend { display: flex; gap: 14px; margin-top: 8px; font-size: 12px; color: var(--muted); }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: -1px; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>AgentRouter Monitor</h1>
+    <span class="muted" id="updated">загрузка…</span>
+  </header>
+
+  <div class="targets" id="targets"></div>
+
+  <section class="panel">
+    <h2>Модели</h2>
+    <table>
+      <thead><tr><th>Модель</th><th>API</th><th>Статус</th><th class="num">Сколько</th><th class="num">24ч</th><th class="num">Прогноз 30м</th><th>Последняя проверка</th><th></th></tr></thead>
+      <tbody id="models"></tbody>
+    </table>
+  </section>
+
+  <section class="panel">
+    <div class="row-head">
+      <h2>Таймлайн доступности</h2>
+      <div class="controls" id="periods">
+        <button data-p="6h">6ч</button><button data-p="1d" class="on">24ч</button><button data-p="7d">7д</button><button data-p="30d">30д</button>
+      </div>
+    </div>
+    <div id="timeline"></div>
+    <div class="legend"><span><i style="background:var(--up)"></i>доступна</span><span><i style="background:var(--down)"></i>недоступна</span><span><i style="background:var(--unknown)"></i>нет данных</span></div>
+  </section>
+
+  <section class="panel">
+    <h2>Статистика за период</h2>
+    <table>
+      <thead><tr><th>Модель</th><th class="num">Доступность</th><th class="num">Доступна</th><th class="num">Недоступна</th><th class="num">Падений</th><th class="num">Ср. аптайм</th><th class="num">Ср. простой</th><th class="num">Макс. простой</th></tr></thead>
+      <tbody id="stats"></tbody>
+    </table>
+  </section>
+
+  <section class="panel">
+    <div class="row-head">
+      <h2>Когда модель доступна (по часам недели)</h2>
+      <select id="heat-model"></select>
+    </div>
+    <div class="heat" id="heat"></div>
+    <div class="legend"><span>вероятность доступности: светлее — ниже, насыщеннее — выше</span></div>
+  </section>
+
+  <section class="panel">
+    <h2>Переключения</h2>
+    <table>
+      <thead><tr><th>Время</th><th>Куда</th><th>Было</th><th>Стало</th><th>Причина</th></tr></thead>
+      <tbody id="switches"></tbody>
+    </table>
+  </section>
+</main>
+<script>
+const REASONS = {down: "модель упала", predicted: "заранее (прогноз)", better: "лучше доступна", pinned: "закреплена", manual: "вручную", initial: "старт"};
+const DAYS = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
+let period = "1d";
+let predictData = {};
+
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]));
+const pct = (x) => x == null ? "–" : (x * 100).toFixed(1) + "%";
+const ts = (t) => t ? new Date(t * 1000).toLocaleString("ru-RU", {month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit"}) : "–";
+function dur(s) {
+  if (s == null) return "–";
+  s = Math.floor(s);
+  const d = Math.floor(s / 86400), h = Math.floor(s % 86400 / 3600), m = Math.floor(s % 3600 / 60);
+  if (d) return `${d}д ${h}ч`;
+  if (h) return `${h}ч ${m}м`;
+  if (m) return `${m}м`;
+  return `${s}с`;
+}
+const pill = (up) => up === true ? '<span class="pill up">UP</span>' : up === false ? '<span class="pill down">DOWN</span>' : '<span class="pill unknown">?</span>';
+const api = (path) => fetch(path).then((r) => r.json()).then((j) => j.data);
+const cssVar = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+
+async function loadStatus() {
+  const s = await api("/api/status");
+  $("updated").textContent = "обновлено " + new Date().toLocaleTimeString("ru-RU") + (s.pinned ? ` · закреплена ${s.pinned}` : "");
+  $("targets").innerHTML = Object.entries(s.targets).map(([n, t]) =>
+    `<div class="target"><div class="name">${esc(n)}</div><div class="model">${esc(t.model || "не на AgentRouter")}</div></div>`).join("") +
+    (s.last_error ? `<div class="target"><div class="name">последняя ошибка · ${ts(s.last_error.ts)}</div><div class="muted">${esc(s.last_error.error).slice(0, 160)}</div></div>` : "");
+  $("models").innerHTML = s.models.map((m) => {
+    const lp = m.last_probe;
+    return `<tr><td class="mono">${esc(m.id)}</td><td>${esc(m.endpoint)}</td><td>${pill(m.up)}</td>
+      <td class="num">${dur(m.for_seconds)}</td><td class="num">${pct(m.availability_24h)}</td><td class="num">${pct(m.next_30m)}</td>
+      <td>${lp ? `${ts(lp.ts)} · ${esc(lp.status)} · ${lp.latency_ms} мс` : "–"}</td>
+      <td class="err">${lp && lp.error ? esc(lp.error).slice(0, 120) : ""}</td></tr>`;
+  }).join("");
+  const sw = await api("/api/switches?limit=30");
+  $("switches").innerHTML = sw.length ? sw.map((x) => `<tr><td>${ts(x.ts)}</td><td>${esc(x.target)}</td><td class="mono">${esc(x.from_model || "–")}</td>
+    <td class="mono">${esc(x.to_model)}</td><td>${esc(REASONS[x.reason] || x.reason)}${x.applied ? "" : " (dry-run)"}</td></tr>`).join("")
+    : '<tr><td colspan="5" class="muted">пока не было</td></tr>';
+}
+
+async function loadPeriod() {
+  const [hist, st] = await Promise.all([api(`/api/history?period=${period}`), api(`/api/stats?period=${period}`)]);
+  const now = Date.now() / 1000, span = {"6h": 6 * 3600, "1d": 86400, "7d": 7 * 86400, "30d": 30 * 86400}[period], t0 = now - span;
+  const models = [...new Set(st.map((r) => r.id))];
+  const W = Math.max(600, $("timeline").clientWidth), L = 150, R = 8, rowH = 22, H = models.length * rowH + 24;
+  const x = (t) => L + (Math.max(t, t0) - t0) / span * (W - L - R);
+  let svg = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="Таймлайн доступности моделей">`;
+  models.forEach((m, i) => {
+    const y = i * rowH + 4;
+    svg += `<text x="0" y="${y + 13}">${esc(m)}</text><rect x="${L}" y="${y}" width="${W - L - R}" height="16" rx="3" fill="${cssVar("--unknown")}" opacity=".35"/>`;
+    hist.filter((h) => h.model === m).forEach((h) => {
+      const a = x(h.start_ts), b = x(h.open ? Math.max(h.end_ts, now) : h.end_ts);
+      if (b <= L) return;
+      svg += `<rect x="${a}" y="${y}" width="${Math.max(1, b - a)}" height="16" fill="${h.up ? cssVar("--up") : cssVar("--down")}"><title>${h.up ? "доступна" : "недоступна"} ${ts(h.start_ts)} → ${h.open ? "сейчас" : ts(h.end_ts)} (${dur(h.end_ts - h.start_ts)})</title></rect>`;
+    });
+  });
+  for (let k = 0; k <= 6; k++) {
+    const t = t0 + span * k / 6;
+    svg += `<text x="${x(t)}" y="${H - 4}" text-anchor="${k === 0 ? "start" : k === 6 ? "end" : "middle"}">${ts(t)}</text>`;
+  }
+  $("timeline").innerHTML = models.length ? svg + "</svg>" : '<p class="muted">данных пока нет</p>';
+  $("stats").innerHTML = st.sort((a, b) => (b.availability ?? -1) - (a.availability ?? -1)).map((r) =>
+    `<tr><td class="mono">${esc(r.id)}</td><td class="num">${pct(r.availability)}</td><td class="num">${dur(r.up_seconds)}</td><td class="num">${dur(r.down_seconds)}</td>
+     <td class="num">${r.outages}</td><td class="num">${dur(r.avg_up_seconds)}</td><td class="num">${dur(r.avg_down_seconds)}</td><td class="num">${dur(r.longest_down_seconds)}</td></tr>`).join("");
+}
+
+async function loadPredict() {
+  predictData = await api("/api/predict?hours=24");
+  const sel = $("heat-model"), prev = sel.value;
+  sel.innerHTML = Object.keys(predictData).map((m) => `<option>${esc(m)}</option>`).join("");
+  if (prev && predictData[prev]) sel.value = prev;
+  drawHeat();
+}
+
+function drawHeat() {
+  const p = predictData[$("heat-model").value];
+  if (!p) { $("heat").innerHTML = ""; return; }
+  const up = cssVar("--up"), down = cssVar("--down");
+  let html = '<div class="lbl"></div>' + Array.from({length: 24}, (_, h) => `<div class="lbl" style="text-align:center">${h % 3 ? "" : h}</div>`).join("");
+  p.week.forEach((row, d) => {
+    html += `<div class="lbl">${DAYS[d]}</div>` + row.map((v, h) => v == null ? `<div style="background:${cssVar("--unknown")};opacity:.3"></div>` :
+      `<div title="${DAYS[d]} ${h}:00 — ${pct(v)}" style="background:${v >= 0.5 ? up : down};opacity:${(0.15 + 0.85 * Math.abs(v - 0.5) * 2).toFixed(2)}"></div>`).join("");
+  });
+  $("heat").innerHTML = html + `<div class="lbl"></div><div class="muted" style="grid-column: span 24; height:auto">${Math.round(p.samples)} наблюдений (×5 мин)</div>`;
+}
+
+$("periods").addEventListener("click", (e) => {
+  const b = e.target.closest("button");
+  if (!b) return;
+  period = b.dataset.p;
+  document.querySelectorAll("#periods button").forEach((x) => x.classList.toggle("on", x === b));
+  loadPeriod();
+});
+$("heat-model").addEventListener("change", drawHeat);
+function refresh() { loadStatus(); loadPeriod(); loadPredict(); }
+refresh();
+setInterval(refresh, 30000);
+</script>
+</body>
+</html>

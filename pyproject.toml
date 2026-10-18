@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "agentrouter"
+version = "0.1.0"
+description = "Background monitor for AgentRouter model availability that keeps opencode and Hermes on a working model"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = []
+
+[project.optional-dependencies]
+hermes = ["pyyaml"]
+
+[project.scripts]
+agentrouter = "agentrouter.cli:main"
+
+[tool.setuptools]
+packages = ["agentrouter", "agentrouter.writers"]
+
+[tool.setuptools.package-data]
+agentrouter = ["dashboard.html"]
