@@ -26,12 +26,13 @@ systemctl --user enable --now agentrouter    # запуск в фоне
 | `agentrouter predict [--hours 24]` | прогноз доступности по часам |
 | `agentrouter check [MODEL...]` | проверить сейчас |
 | `agentrouter switch MODEL [--target opencode\|hermes]` | переключить вручную |
+| `agentrouter checks off` / `checks on` / `checks` | выключить или включить проверки (и вместе с ними авто-переключение) / показать состояние |
 | `agentrouter pin MODEL` / `unpin` | закрепить модель (авто-переключение выключено) / вернуть авто |
 | `agentrouter init` | записать конфиг по умолчанию в `~/.config/agentrouter/config.json` |
 
 У `status`, `stats`, `history` и `predict` есть флаг `--json`.
 
-Дашборд: <http://127.0.0.1:18778>. На нём таймлайн доступности, статистика, карта доступности по часам недели и журнал переключений. JSON-API: `/api/status`, `/api/stats?period=7d`, `/api/history?model=&period=2d`, `/api/predict?hours=24`, `/api/switches`.
+Дашборд: <http://127.0.0.1:18778>. На нём таймлайн доступности, статистика, карта доступности по часам недели и журнал переключений. Кнопка в шапке включает и выключает проверки, так же как `agentrouter checks on|off`. Пока проверки выключены, демон не шлёт запросы и не меняет конфиги. Это время попадает в историю как разрыв без данных и не считается ни доступностью, ни простоем. JSON-API: `POST /api/checks {"enabled": true|false}`, `/api/status`, `/api/stats?period=7d`, `/api/history?model=&period=2d`, `/api/predict?hours=24`, `/api/switches`.
 
 ## Как это работает
 

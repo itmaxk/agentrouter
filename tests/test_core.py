@@ -103,6 +103,19 @@ class DBStatsTest(unittest.TestCase):
             db.add_probe(1.0, ProbeResult("m", "chat", "ok", 10))
             self.assertEqual(db.last_probe("m")["status"], "ok")
 
+    def test_pause_closes_open_intervals(self):
+        from agentrouter import report
+        with tempfile.TemporaryDirectory() as d:
+            db = DB(Path(d) / "s.db")
+            db.record_status("m", True, 0, 1000)
+            report.set_checks(db, False)
+            self.assertTrue(db.get("checks_paused"))
+            self.assertIsNone(db.open_interval("m"))
+            db.record_status("m", True, 100, 1000)
+            self.assertEqual(len(db.intervals("m")), 2)
+            report.set_checks(db, True)
+            self.assertIsNone(db.get("checks_paused"))
+
     def test_parse_period(self):
         self.assertEqual(stats.parse_period("2d"), 172800)
         self.assertEqual(stats.fmt_duration(3725), "1h02m")

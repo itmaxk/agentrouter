@@ -50,6 +50,11 @@ svg text { fill: var(--muted); font-size: 11px; }
 .heat div { height: 16px; border-radius: 2px; font-size: 10px; color: var(--muted); }
 .heat .lbl { height: auto; text-align: right; padding-right: 4px; }
 select { background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 3px 6px; font: inherit; }
+.toggle { background: transparent; color: var(--text); border: 1px solid var(--line); border-radius: 99px; padding: 4px 12px; cursor: pointer; font: inherit; display: inline-flex; align-items: center; gap: 8px; }
+.toggle .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--up); }
+.toggle.paused .dot { background: var(--down); }
+.toggle:disabled { opacity: .6; cursor: wait; }
+.head-right { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .legend { display: flex; gap: 14px; margin-top: 8px; font-size: 12px; color: var(--muted); }
 .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: -1px; }
 </style>
@@ -58,7 +63,10 @@ select { background: var(--panel); color: var(--text); border: 1px solid var(--l
 <main>
   <header>
     <h1>AgentRouter Monitor</h1>
-    <span class="muted" id="updated">загрузка…</span>
+    <div class="head-right">
+      <span class="muted" id="updated">загрузка…</span>
+      <button class="toggle" id="checks" type="button" title="Включить или выключить проверки моделей и авто-переключение"><span class="dot"></span><span id="checks-label">Проверки</span></button>
+    </div>
   </header>
 
   <div class="targets" id="targets"></div>
@@ -112,6 +120,7 @@ const REASONS = {down: "модель упала", predicted: "заранее (п
 const DAYS = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
 let period = "1d";
 let predictData = {};
+let checksPaused = null;
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]));
@@ -132,6 +141,7 @@ const cssVar = (n) => getComputedStyle(document.documentElement).getPropertyValu
 
 async function loadStatus() {
   const s = await api("/api/status");
+  renderChecks(s.checks_paused);
   $("updated").textContent = "обновлено " + new Date().toLocaleTimeString("ru-RU") + (s.pinned ? ` · закреплена ${s.pinned}` : "");
   $("targets").innerHTML = Object.entries(s.targets).map(([n, t]) =>
     `<div class="target"><div class="name">${esc(n)}</div><div class="model">${esc(t.model || "не на AgentRouter")}</div></div>`).join("") +
@@ -203,6 +213,28 @@ $("periods").addEventListener("click", (e) => {
   loadPeriod();
 });
 $("heat-model").addEventListener("change", drawHeat);
+
+function renderChecks(paused) {
+  checksPaused = paused || null;
+  const b = $("checks");
+  b.classList.toggle("paused", !!checksPaused);
+  $("checks-label").textContent = checksPaused ? `Проверки выключены с ${ts(checksPaused)} — включить` : "Проверки включены — выключить";
+}
+$("checks").addEventListener("click", async () => {
+  const b = $("checks");
+  b.disabled = true;
+  try {
+    const r = await fetch("/api/checks", {method: "POST", headers: {"Content-Type": "application/json"},
+                                         body: JSON.stringify({enabled: !!checksPaused})});
+    if (!r.ok) throw new Error(await r.text());
+    renderChecks((await r.json()).data.checks_paused);
+    loadStatus();
+  } catch (e) {
+    alert("Не удалось переключить проверки: " + e.message);
+  } finally {
+    b.disabled = false;
+  }
+});
 function refresh() { loadStatus(); loadPeriod(); loadPredict(); }
 refresh();
 setInterval(refresh, 30000);

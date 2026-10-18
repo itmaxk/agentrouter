@@ -49,6 +49,8 @@ def cmd_status(args, cfg, db):
         return print(json.dumps(s, indent=2, default=str))
     for name, t in s["targets"].items():
         print(f"{name:9} -> {t.get('model') or '(not on agentrouter)'}{'  ERROR ' + t['error'] if t.get('error') else ''}")
+    if s["checks_paused"]:
+        print(f"checks    -> PAUSED since {_ts(s['checks_paused'])} (agentrouter checks on)")
     if s["pinned"]:
         print(f"pinned    -> {s['pinned']}")
     print()
@@ -134,6 +136,13 @@ def cmd_unpin(args, cfg, db):
     print("unpinned; automatic selection resumed")
 
 
+def cmd_checks(args, cfg, db):
+    if args.state:
+        report.set_checks(db, args.state == "on")
+    paused = db.get("checks_paused")
+    print(f"checks paused since {_ts(paused)}" if paused else "checks enabled")
+
+
 def cmd_key(args, cfg, db):
     print(auth.api_key())
 
@@ -182,6 +191,9 @@ def main(argv=None):
     p.add_argument("model")
     p.set_defaults(fn=cmd_pin)
     sub.add_parser("unpin", help="resume auto-switching").set_defaults(fn=cmd_unpin)
+    p = sub.add_parser("checks", help="turn probing (and auto-switching) on or off; no argument shows the state")
+    p.add_argument("state", nargs="?", choices=["on", "off"])
+    p.set_defaults(fn=cmd_checks)
     sub.add_parser("key", help="print the AgentRouter API key (Hermes key_cmd)").set_defaults(fn=cmd_key)
     sub.add_parser("init", help="write a default config file").set_defaults(fn=cmd_init)
 

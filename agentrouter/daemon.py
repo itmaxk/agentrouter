@@ -58,6 +58,7 @@ class Daemon:
         self.next_discover = 0.0
         self.virtual: dict[str, str] = {}   # dry-run: what each target would be on now
         self.virtual_ts: dict[str, float] = {}
+        self.paused = False
         iv = cfg["intervals"]
         self.max_gap = 2 * iv["other"] + 2 * iv["timeout"]
 
@@ -152,6 +153,13 @@ class Daemon:
 
     def tick(self):
         now = time.time()
+        paused = bool(self.db.get("checks_paused"))
+        if paused != self.paused:
+            self.paused = paused
+            self.pending.clear()
+            log.info("checks %s", "paused" if paused else "resumed")
+        if paused:
+            return
         if now >= self.next_discover:
             self.discover(now)
         used = self.in_use()
@@ -159,7 +167,7 @@ class Daemon:
                                        key=lambda v: -selector.score(v, self.cfg["priority"], now,
                                                                      self.cfg["selector"]["lookahead_min"]))]
         for m in self.db.models():
-            if self.stop.is_set():
+            if self.stop.is_set() or self.db.get("checks_paused"):
                 return
             if self.next_due.get(m["id"], 0) > now:
                 continue

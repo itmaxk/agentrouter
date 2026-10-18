@@ -88,6 +88,9 @@ class DB:
                           (model, int(up), ts, ts))
         return cur is not None
 
+    def close_open_intervals(self):
+        self.conn.execute("UPDATE intervals SET open=0 WHERE open=1")
+
     def intervals(self, model=None, since=0.0):
         sql, args = "SELECT * FROM intervals WHERE end_ts>=?", [since]
         if model:

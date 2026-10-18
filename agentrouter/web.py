@@ -29,6 +29,24 @@ def serve(cfg, db_path=None):
             self.end_headers()
             self.wfile.write(body)
 
+        def do_POST(self):
+            url = urllib.parse.urlparse(self.path)
+            # JSON-only and same-origin: a cross-site page can't send this without a CORS preflight
+            origin = self.headers.get("Origin")
+            if (not (self.headers.get("Content-Type") or "").startswith("application/json")
+                    or (origin and urllib.parse.urlparse(origin).netloc != self.headers.get("Host"))):
+                return self.send(403, b"forbidden", "text/plain")
+            try:
+                body = json.loads(self.rfile.read(int(self.headers.get("Content-Length") or 0)) or b"{}")
+                if url.path == "/api/checks":
+                    report.set_checks(db, bool(body["enabled"]))
+                    data = {"checks_paused": db.get("checks_paused")}
+                else:
+                    return self.send(404, b"not found", "text/plain")
+            except (ValueError, KeyError, TypeError) as e:
+                return self.send(400, json.dumps({"error": str(e)}).encode(), "application/json")
+            self.send(200, json.dumps({"now": time.time(), "data": data}).encode(), "application/json")
+
         def do_GET(self):
             url = urllib.parse.urlparse(self.path)
             qs = {k: v[0] for k, v in urllib.parse.parse_qs(url.query).items()}

@@ -5,6 +5,16 @@ from . import predict, stats
 from .daemon import make_writers, model_views
 
 
+def set_checks(db, enabled: bool):
+    """Pause or resume probing (and with it auto-switching). Pausing ends the open intervals,
+    so the paused time shows up as a gap instead of being counted as up or down."""
+    if enabled:
+        db.set("checks_paused", None)
+    elif not db.get("checks_paused"):
+        db.set("checks_paused", time.time())
+        db.close_open_intervals()
+
+
 def status(db, cfg, now=None) -> dict:
     now = now or time.time()
     since_day = now - 86400
@@ -26,6 +36,7 @@ def status(db, cfg, now=None) -> dict:
         except Exception as e:
             targets[name] = {"model": None, "error": str(e)}
     return {"now": now, "models": models, "targets": targets, "pinned": db.get("pinned"),
+            "checks_paused": db.get("checks_paused"),
             "last_error": db.get("last_error"), "switches": db.switches(10)}
 
 
